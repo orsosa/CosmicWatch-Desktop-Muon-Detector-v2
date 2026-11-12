@@ -1,15 +1,17 @@
 /*
   CosmicWatch Desktop Muon Detector Arduino Code
 
-  Records to microSD and shows file creation status once on the SSD1306 OLED.
+  This code is used to record data to the built in microSD card reader/writer.
   
   Questions?
   Spencer N. Axani
   saxani@mit.edu
 
-  Target: Arduino Nano ATmega328P; SSD1306 128x64 I2C OLED at 0x3C.
-  Libraries: SPI, EEPROM, SD, Wire. No Adafruit or TimerOne required.
-  Keep StartupOLED.h alongside this sketch.
+  Requirements: Sketch->Include->Manage Libraries:
+  SPI, EEPROM, SD, and Wire are probably already installed.
+  1. Adafruit SSD1306     -- by Adafruit Version 1.0.1
+  2. Adafruit GFX Library -- by Adafruit Version 1.0.2
+  3. TimerOne             -- by Jesse Tane et al. Version 1.1.0
 */
 
 #include "StartupOLED.h"
@@ -18,6 +20,9 @@
 #include <EEPROM.h>
 
 #define SDPIN 10
+SdFile root;
+Sd2Card card;
+SdVolume volume;
 
 File myFile;
 
@@ -40,7 +45,7 @@ unsigned long time_stamp                    = 0L;
 unsigned long measurement_deadtime          = 0L;
 unsigned long time_measurement              = 0L;      // Time stamp
 unsigned long interrupt_timer               = 0L;      // Time stamp
-unsigned long start_time                    = 0L;      // Start time reference variable
+int           start_time                    = 0L;      // Start time reference variable
 long int      total_deadtime                = 0L;      // total time between signals
 
 unsigned long measurement_t1;
@@ -88,27 +93,21 @@ void setup() {
      //delay(2000);
     }
     
-  // All waits and OLED transfers occur before acquisition.
   startupOLEDInit();
-  delay(4000);  // Allow the SD supply to settle before the first attempt.
-  bool sdReady = false;
-  for (byte attempt = 0; attempt < 3; ++attempt) {
-    if (SD.begin(SDPIN)) {
-      sdReady = true;
-      break;
-    }
-    if (attempt < 2) delay(250);
-  }
-  if (!sdReady) {
+  if (!SD.begin(SDPIN)) {
+    startupOLEDStatus(false, filename);
     Serial.println(F("SD initialization failed!"));
     Serial.println(F("Is there an SD card inserted?"));
-    sdFailed();
+    return;
   }
   
   get_Mode();
   if (Mode == 2) read_from_SD();
   else if (Mode == 3) remove_all_SD();
-  else{setup_files();}
+  else{
+    setup_files();
+    startupOLEDStatus(bool(myFile), filename);
+  }
   
   if (MASTER == 1){digitalWrite(6,LOW);}
   analogRead(A0);
@@ -118,6 +117,7 @@ void setup() {
 }
 
 void loop() {
+  delay(4000);
   if(Mode == 1){
   Serial.println(F("##########################################################################################"));
   Serial.println(F("### CosmicWatch: The Desktop Muon Detector"));
@@ -153,27 +153,10 @@ void setup_files(){
            digitalWrite(3,LOW);
           }
           delay(500);
-          myFile = SD.open(filename, FILE_WRITE);
-          if (!myFile) sdFailed();
-          // Persist the new directory entry before claiming success.
-          myFile.flush();
-          myFile.close();
-          myFile = SD.open(filename, FILE_WRITE);
-          if (!myFile) sdFailed();
-          startupOLEDStatus(true, filename);
-          return;  
+          myFile = SD.open(filename, FILE_WRITE); 
+          break;  
       }
    }
-  Serial.println(F("No free filename (001-200)."));
-  sdFailed();
-}
-
-void sdFailed() {
-  Serial.println(F("SD failed"));
-  startupOLEDStatus(false, filename);
-  if (MASTER == 1) digitalWrite(6, LOW);
-  // Do not report acquisition when no recording file exists. Reset to retry.
-  while (true) { delay(1000); }
 }
 
 void write_to_SD(){ 
@@ -227,6 +210,19 @@ void write_to_SD(){
 
 void read_from_SD(){
     while(true){
+    if(SD.exists("File_210.txt")){
+      SD.remove("File_209.txt");
+      SD.remove("File_208.txt");
+      SD.remove("File_207.txt");
+      SD.remove("File_206.txt");
+      SD.remove("File_205.txt");
+      SD.remove("File_204.txt");
+      SD.remove("File_203.txt");
+      SD.remove("File_202.txt");
+      SD.remove("File_201.txt");
+      SD.remove("File_200.txt");
+      }
+    
     for (uint8_t i = 1; i < 211; i++) {
       
       int hundreds = (i-i/1000*1000)/100;
@@ -293,7 +289,7 @@ void remove_all_SD() {
     Serial.println("Done...");
     break;
   }
-  // Deletion is complete; do not acquire without an open output file.
+  write_to_SD();
 }
 
 void get_Mode(){ //fuction for automatic port finding on PC

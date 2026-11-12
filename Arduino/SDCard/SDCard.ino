@@ -111,7 +111,7 @@ void setup() {
 }
 
 void loop() {
-  delay(4000);
+  delay(10000);
   if(Mode == 1){
   Serial.println(F("##########################################################################################"));
   Serial.println(F("### CosmicWatch: The Desktop Muon Detector"));
