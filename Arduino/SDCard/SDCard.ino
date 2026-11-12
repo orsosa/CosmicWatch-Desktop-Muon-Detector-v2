@@ -25,8 +25,8 @@ SdVolume volume;
 
 File myFile;
 
-const int SIGNAL_THRESHOLD    = 50;        // Min threshold to trigger on
-const int RESET_THRESHOLD     = 25; 
+const int SIGNAL_THRESHOLD    = 80;        // Min threshold to trigger on
+const int RESET_THRESHOLD     = 50; 
 
 const int LED_BRIGHTNESS      = 255;         // Brightness of the LED [0,255]
 
@@ -111,6 +111,7 @@ void setup() {
 }
 
 void loop() {
+  delay(2000);
   if(Mode == 1){
   Serial.println(F("##########################################################################################"));
   Serial.println(F("### CosmicWatch: The Desktop Muon Detector"));
